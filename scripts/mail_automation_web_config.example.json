@@ -1,0 +1,10 @@
+{
+  "browser_mode": "system-edge-default",
+  "edge_user_data_dir": "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data",
+  "edge_profile_directory": "Default",
+  "outlook_url": "https://outlook.office.com/mail/",
+  "edge_channel": "msedge",
+  "local_time_zone": "Europe/London",
+  "token_refresh_window_seconds": 3600,
+  "headless": true
+}

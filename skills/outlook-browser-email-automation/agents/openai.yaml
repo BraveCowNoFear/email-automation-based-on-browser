@@ -1,0 +1,4 @@
+interface:
+  display_name: "Outlook Browser Email Automation"
+  short_description: "Browser-based Outlook mail briefings and calendar updates"
+  default_prompt: "Use $outlook-browser-email-automation to review recent Outlook mail and update calendar items."

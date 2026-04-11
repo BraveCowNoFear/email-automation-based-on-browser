@@ -1,0 +1,11 @@
+version = 1
+id = "outlook-browser-email"
+kind = "cron"
+name = "Outlook Browser Email"
+prompt = "Use $outlook-browser-email-automation to run the merged Outlook browser email automation. Read automation memory first, run the skill's compact handoff with session preflight, summarize actionable mail from the last 24 hours in concise Chinese, and create calendar entries only for clear commitments."
+status = "ACTIVE"
+rrule = "RRULE:FREQ=WEEKLY;BYHOUR=18;BYMINUTE=0;BYDAY=SU,MO,TU,WE,TH,FR,SA"
+model = "gpt-5.4"
+reasoning_effort = "medium"
+execution_environment = "local"
+cwds = ["<CODEX_HOME>\\skills\\outlook-browser-email-automation"]

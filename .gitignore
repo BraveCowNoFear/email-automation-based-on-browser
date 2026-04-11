@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+scripts/mail_automation_web_config.json
+skills/*/scripts/mail_automation_web_config.json
+
+output/
+scripts/output/
+skills/*/scripts/output/
+
+.env
+.venv/
+venv/
+*.log
+
