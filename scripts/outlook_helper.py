@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 
 import requests
 
-PLAYWRIGHT_COMMANDS = {"recent-mail", "ensure-calendar", "web-login"}
+PLAYWRIGHT_COMMANDS = {"recent-mail", "ensure-calendar", "web-login", "ensure-session"}
 PLAYWRIGHT_REEXEC_ENV = "MAIL_AUTOMATION_PLAYWRIGHT_REEXEC"
 PLAYWRIGHT_FALLBACK_PYTHONS = ("3.12", "3.13", "3.11")
 
