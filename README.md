@@ -27,6 +27,12 @@ Copy-Item .\scripts\mail_automation_web_config.example.json .\scripts\mail_autom
 
 The default state directory is under `%LOCALAPPDATA%\codex-mail-automation-web`. Do not commit generated config, browser state, or debug output.
 
+Useful config fields:
+
+- `local_time_zone`: IANA timezone used to interpret local mail and calendar times, for example `Europe/London`.
+- `outlook_time_zone`: Outlook/Exchange timezone name used when creating events, for example `GMT Standard Time`.
+- `edge_user_data_dir` and `edge_profile_directory`: browser profile used for the initial web login.
+
 ## First login
 
 ```powershell
@@ -66,7 +72,9 @@ python .\scripts\outlook_briefing_data.py --ensure-session --hours 24 --max-item
 Copy `skills/outlook-browser-email-automation` into your Codex skills directory, usually:
 
 ```powershell
-Copy-Item .\skills\outlook-browser-email-automation "$env:CODEX_HOME\skills\" -Recurse
+$codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE ".codex" }
+New-Item -ItemType Directory -Force -Path (Join-Path $codexHome "skills") | Out-Null
+Copy-Item .\skills\outlook-browser-email-automation (Join-Path $codexHome "skills") -Recurse -Force
 ```
 
 Then use:

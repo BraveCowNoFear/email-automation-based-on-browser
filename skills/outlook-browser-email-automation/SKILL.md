@@ -15,10 +15,12 @@ Use the bundled scripts from this skill directory unless the user explicitly poi
 2. Run the compact data handoff:
 
 ```powershell
-python "$env:CODEX_HOME\skills\outlook-browser-email-automation\scripts\outlook_briefing_data.py" --ensure-session --hours 24 --max-items 250
+$codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE ".codex" }
+$skillDir = Join-Path $codexHome "skills\outlook-browser-email-automation"
+python (Join-Path $skillDir "scripts\outlook_briefing_data.py") --ensure-session --hours 24 --max-items 250
 ```
 
-If `CODEX_HOME` is unset, use the local user Codex directory, usually `%USERPROFILE%\.codex\skills\outlook-browser-email-automation` on Windows.
+If `CODEX_HOME` is unset, use the local user Codex directory, usually `%USERPROFILE%\.codex` on Windows.
 
 3. If the handoff reports `fetch_status=failed`, run `scripts/outlook_helper.py web-status` once to classify login/token state, then stop with a concise Chinese failure note.
 4. For successful fetches, load `references/briefing-policy.md` and produce the final Chinese briefing from the compact handoff.

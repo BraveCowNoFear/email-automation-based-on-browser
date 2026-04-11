@@ -5,6 +5,7 @@
   "outlook_url": "https://outlook.office.com/mail/",
   "edge_channel": "msedge",
   "local_time_zone": "Europe/London",
+  "outlook_time_zone": "GMT Standard Time",
   "token_refresh_window_seconds": 3600,
   "headless": true
 }

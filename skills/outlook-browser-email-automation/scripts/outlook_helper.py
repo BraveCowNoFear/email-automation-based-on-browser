@@ -26,6 +26,25 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
 
+WINDOWS_ENV_VAR_RE = re.compile(r"%([^%]+)%")
+
+
+def expand_path(value: str | os.PathLike[str]) -> Path:
+    raw = os.path.expanduser(os.path.expandvars(str(value)))
+    raw = WINDOWS_ENV_VAR_RE.sub(lambda match: os.environ.get(match.group(1), match.group(0)), raw)
+    return Path(raw)
+
+
+def default_state_root() -> Path:
+    return expand_path(os.getenv("LOCALAPPDATA", str(Path.home() / ".codex")))
+
+
+def default_edge_user_data_dir() -> Path:
+    if os.name == "nt":
+        return expand_path(os.getenv("LOCALAPPDATA", "")) / "Microsoft" / "Edge" / "User Data"
+    return Path.home() / ".config" / "microsoft-edge"
+
+
 def command_name(argv: list[str]) -> str:
     for arg in argv[1:]:
         if not arg.startswith("-"):
@@ -98,8 +117,8 @@ DEFAULT_LOCAL_TIME_ZONE = "Europe/London"
 DEFAULT_OUTLOOK_TIME_ZONE = "GMT Standard Time"
 DEFAULT_TOKEN_REFRESH_WINDOW_SECONDS = 3600
 CONFIG_ENV = "MAIL_AUTOMATION_CONFIG"
-CONFIG_PATH = Path(os.path.expandvars(os.getenv(CONFIG_ENV, str(Path(__file__).with_name("mail_automation_web_config.json")))))
-STATE_DIR = Path(os.getenv("LOCALAPPDATA", Path.home() / ".codex")) / "codex-mail-automation-web"
+CONFIG_PATH = expand_path(os.getenv(CONFIG_ENV, str(Path(__file__).with_name("mail_automation_web_config.json"))))
+STATE_DIR = default_state_root() / "codex-mail-automation-web"
 PROFILE_DIR = STATE_DIR / "edge-profile"
 STORAGE_STATE_PATH = STATE_DIR / "storage_state.json"
 MAIL_PREVIEW_CHARS = 320
@@ -146,19 +165,20 @@ def load_config() -> dict[str, Any]:
         "outlook_url": OUTLOOK_WEB_URL,
         "edge_channel": "msedge",
         "local_time_zone": DEFAULT_LOCAL_TIME_ZONE,
+        "outlook_time_zone": DEFAULT_OUTLOOK_TIME_ZONE,
         "token_refresh_window_seconds": DEFAULT_TOKEN_REFRESH_WINDOW_SECONDS,
         "headless": True,
         "browser_mode": "system-edge-default",
-        "edge_user_data_dir": str(Path(os.getenv("LOCALAPPDATA", "")) / "Microsoft/Edge/User Data"),
+        "edge_user_data_dir": str(default_edge_user_data_dir()),
         "edge_profile_directory": "Default",
     }
     if not CONFIG_PATH.exists():
         return defaults
     raw = json.loads(CONFIG_PATH.read_text(encoding="utf-8-sig"))
     config = {**defaults, **raw}
-    for key in ("edge_user_data_dir", "edge_profile_directory"):
+    for key in ("edge_user_data_dir",):
         if key in config:
-            config[key] = os.path.expanduser(os.path.expandvars(str(config[key])))
+            config[key] = str(expand_path(str(config[key])))
     try:
         ZoneInfo(str(config["local_time_zone"]))
     except Exception as exc:
@@ -469,6 +489,8 @@ def request_json(method: str, url: str, *, headers: dict[str, str], params: dict
 
 
 def api_datetime_to_local_text(value: str, zone: ZoneInfo) -> str:
+    if not value:
+        return ""
     dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
@@ -515,33 +537,39 @@ def build_rest_message(item: dict[str, Any], zone: ZoneInfo) -> dict[str, Any]:
 
 
 def fetch_recent_messages_http(hours: int = 24, max_items: int = 250) -> list[dict[str, Any]]:
+    max_items = max(0, int(max_items))
+    hours = max(0, int(hours))
+    if max_items == 0 or hours == 0:
+        return []
     config = load_config()
     zone = local_zone(config)
     headers = outlook_api_headers_with_auto_refresh()
-    top = max(25, min(max_items, 250))
-    params = {
+    top = max(1, min(max_items, 250))
+    params: dict[str, Any] | None = {
         "$top": top,
         "$orderby": "ReceivedDateTime DESC",
     }
-    data = request_json(
-        "GET",
-        f"{OUTLOOK_REST_BASE}/me/mailfolders/inbox/messages",
-        headers=headers,
-        params=params,
-        allow_auto_refresh=True,
-    )
+    url = f"{OUTLOOK_REST_BASE}/me/mailfolders/inbox/messages"
     cutoff = datetime.now(zone) - timedelta(hours=hours)
     messages = []
-    for item in data.get("value") or []:
-        message = build_rest_message(item, zone)
-        if not message["subject"]:
-            continue
-        received = datetime.fromisoformat(message["received"])
-        if received < cutoff:
-            continue
-        messages.append(message)
-        if len(messages) >= max_items:
+    while url and len(messages) < max_items:
+        data = request_json("GET", url, headers=headers, params=params, allow_auto_refresh=True)
+        reached_cutoff = False
+        for item in data.get("value") or []:
+            message = build_rest_message(item, zone)
+            if not message["subject"] or not message["received"]:
+                continue
+            received = datetime.fromisoformat(message["received"])
+            if received < cutoff:
+                reached_cutoff = True
+                break
+            messages.append(message)
+            if len(messages) >= max_items:
+                break
+        if reached_cutoff:
             break
+        url = str(data.get("@odata.nextLink") or "")
+        params = None
     return messages
 
 
@@ -587,12 +615,22 @@ def ensure_calendar_http(spec_path: Path):
         raise RuntimeError(f"Calendar spec must be a JSON array: {spec_path}")
     config = load_config()
     zone = local_zone(config)
+    outlook_time_zone = str(config.get("outlook_time_zone") or DEFAULT_OUTLOOK_TIME_ZONE)
     headers = outlook_api_headers_with_auto_refresh()
     changes = []
-    for entry in spec:
+    for index, entry in enumerate(spec):
+        if not isinstance(entry, dict):
+            raise RuntimeError(f"Calendar entry #{index + 1} must be an object")
         subject = str(entry.get("subject") or "").strip()
         if not subject:
-            raise RuntimeError("Calendar entry is missing subject")
+            raise RuntimeError(f"Calendar entry #{index + 1} is missing subject")
+        for key in ("start_local", "end_local"):
+            if not entry.get(key):
+                raise RuntimeError(f"Calendar entry #{index + 1} is missing {key}")
+        start_dt = datetime.strptime(str(entry["start_local"]), "%Y-%m-%d %H:%M")
+        end_dt = datetime.strptime(str(entry["end_local"]), "%Y-%m-%d %H:%M")
+        if end_dt <= start_dt:
+            raise RuntimeError(f"Calendar entry #{index + 1} end_local must be after start_local")
         existing = [rest_event_to_local_signature(item, zone) for item in calendar_view_events(headers, zone, entry)]
         exact_duplicate = next(
             (
@@ -623,8 +661,8 @@ def ensure_calendar_http(spec_path: Path):
         ]
         payload = {
             "Subject": subject,
-            "Start": {"DateTime": str(entry["start_local"]).replace(" ", "T"), "TimeZone": DEFAULT_OUTLOOK_TIME_ZONE},
-            "End": {"DateTime": str(entry["end_local"]).replace(" ", "T"), "TimeZone": DEFAULT_OUTLOOK_TIME_ZONE},
+            "Start": {"DateTime": str(entry["start_local"]).replace(" ", "T"), "TimeZone": outlook_time_zone},
+            "End": {"DateTime": str(entry["end_local"]).replace(" ", "T"), "TimeZone": outlook_time_zone},
             "ShowAs": outlook_show_as(entry.get("busy_status")),
             "IsReminderOn": bool(entry.get("reminder_set", False)),
             "ReminderMinutesBeforeStart": int(entry.get("reminder_minutes") or 0),
@@ -758,7 +796,7 @@ def web_status() -> dict[str, Any]:
         "storage_state_path": str(STORAGE_STATE_PATH),
         "storage_state_present": STORAGE_STATE_PATH.exists(),
         "outlook_url": str(config["outlook_url"]),
-        "token_status": outlook_token_status(),
+        "token_status": token_status,
     }
 
 

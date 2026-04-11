@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -29,6 +30,8 @@ KEEP_FIELDS = (
 
 
 def helper_path() -> Path:
+    if os.getenv("MAIL_AUTOMATION_HELPER"):
+        return Path(os.path.expandvars(os.path.expanduser(os.environ["MAIL_AUTOMATION_HELPER"]))).resolve()
     return Path(__file__).resolve().with_name("outlook_helper.py")
 
 
@@ -53,10 +56,13 @@ def dedupe(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for item in messages:
         key = str(item.get("entry_id") or "").strip()
         if not key:
-            key = "|".join(
+            parts = [
                 str(item.get(part) or "").strip().lower()
-                for part in ("sender", "topic", "received")
-            )
+                for part in ("sender_email", "sender", "topic", "subject", "received", "preview")
+            ]
+            key = "|".join(part for part in parts if part)
+        if not key:
+            key = json.dumps(item, ensure_ascii=False, sort_keys=True)
         if key in seen:
             continue
         seen.add(key)
@@ -105,18 +111,25 @@ def main() -> int:
     parser.add_argument("--ensure-session", action="store_true")
     parser.add_argument("--min-valid-seconds", type=int, default=10800)
     args = parser.parse_args()
+    hours = max(0, args.hours)
+    max_items = max(0, args.max_items)
+    retries = max(0, args.retries)
 
     output: dict[str, Any] = {
         "fetch_status": "failed",
         "helper": str(helper_path()),
-        "hours": args.hours,
-        "max_items": args.max_items,
+        "hours": hours,
+        "max_items": max_items,
     }
     if args.ensure_session:
         output["session"] = ensure_session(args.min_valid_seconds)
+        if not output["session"].get("ok"):
+            output["failure_note"] = output["session"].get("error") or "session preflight failed"
+            print(json.dumps(output, **COMPACT_JSON_KWARGS))
+            return 1
 
     try:
-        messages, errors = fetch_recent_mail(args.hours, args.max_items, args.retries)
+        messages, errors = fetch_recent_mail(hours, max_items, retries)
         compact = dedupe(messages)
         output.update(
             {
