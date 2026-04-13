@@ -1,15 +1,17 @@
-# Email automation based on browser
+# Email Automation Based on Browser
+
+[English](./README.md) | [简体中文](./README.zh-CN.md)
 
 Browser-backed Outlook Web automation for recurring email briefings and calendar updates.
 
-This project avoids desktop Outlook COM/MAPI and avoids creating a Microsoft Graph app registration. It reuses a logged-in Outlook Web session, extracts the Outlook Web access token from Playwright storage state, and calls Outlook REST endpoints used by the web client.
+This project avoids desktop Outlook COM/MAPI and avoids creating a Microsoft Graph app registration. It reuses a logged-in Outlook Web session, extracts the Outlook Web access token from Playwright storage state, and calls the Outlook REST endpoints used by the web client.
 
-## What it includes
+## What It Includes
 
-- `scripts/outlook_helper.py`: CLI for login refresh, session checks, recent mail extraction, and calendar event creation.
-- `scripts/outlook_briefing_data.py`: compact handoff generator for Codex or other automation agents.
-- `skills/outlook-browser-email-automation`: installable Codex skill that wraps the scripts and briefing policy.
-- `automation-examples/outlook-browser-email.toml`: short automation prompt that calls the skill instead of embedding the full workflow.
+- `scripts/outlook_helper.py`: CLI for login refresh, session checks, recent mail extraction, and calendar event creation
+- `scripts/outlook_briefing_data.py`: compact handoff generator for Codex or other automation agents
+- `skills/outlook-browser-email-automation`: installable Codex skill that wraps the scripts and briefing policy
+- `automation-examples/outlook-browser-email.toml`: short automation prompt that calls the skill instead of embedding the full workflow
 
 ## Setup
 
@@ -29,11 +31,11 @@ The default state directory is under `%LOCALAPPDATA%\codex-mail-automation-web`.
 
 Useful config fields:
 
-- `local_time_zone`: IANA timezone used to interpret local mail and calendar times, for example `Europe/London`.
-- `outlook_time_zone`: Outlook/Exchange timezone name used when creating events, for example `GMT Standard Time`.
-- `edge_user_data_dir` and `edge_profile_directory`: browser profile used for the initial web login.
+- `local_time_zone`: IANA timezone used to interpret local mail and calendar times, for example `Europe/London`
+- `outlook_time_zone`: Outlook or Exchange timezone name used when creating events, for example `GMT Standard Time`
+- `edge_user_data_dir` and `edge_profile_directory`: browser profile used for the initial web login
 
-## First login
+## First Login
 
 ```powershell
 python .\scripts\outlook_helper.py web-login
@@ -67,9 +69,9 @@ Generate a compact automation handoff:
 python .\scripts\outlook_briefing_data.py --ensure-session --hours 24 --max-items 250
 ```
 
-## Install the Codex skill
+## Install The Codex Skill
 
-Copy `skills/outlook-browser-email-automation` into your Codex skills directory, usually:
+Copy `skills/outlook-browser-email-automation` into your Codex skills directory:
 
 ```powershell
 $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE ".codex" }
@@ -87,5 +89,9 @@ Use $outlook-browser-email-automation to review recent Outlook mail and update c
 
 - This is browser-session automation, not an official Microsoft Graph integration.
 - If Outlook requires password, Windows Hello, or MFA, run `web-login` manually.
-- Keep saved browser state private; it can grant access to mail.
+- Keep saved browser state private because it can grant access to mail.
 - Calendar creation is conservative and deduplicates exact same-title same-time events.
+
+## License
+
+See `LICENSE`.
