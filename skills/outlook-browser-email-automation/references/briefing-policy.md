@@ -29,6 +29,8 @@ Skip vague, tentative, promotional, or info-only mentions. For date-only commitm
 
 Before reporting calendar work, verify exact date, local time, timezone assumption, placeholder usage, and duplicate handling. Reject unsupported calendar proposals even if the mail looks important.
 
+For tutorial, class, meeting, and appointment events, include the relevant person or professor lastname in the calendar subject when known. Include the physical or online location in the calendar location field when known. Put source sender, full person name, lastname, location, and any date/time inference in the body so later audits can understand why the event was created.
+
 ## Final Output
 
 Write in concise Chinese, in this order:

@@ -105,7 +105,7 @@ def ensure_session(min_valid_seconds: int) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--hours", type=int, default=24)
+    parser.add_argument("--hours", type=int, default=72)
     parser.add_argument("--max-items", type=int, default=250)
     parser.add_argument("--retries", type=int, default=1)
     parser.add_argument("--ensure-session", action="store_true")

@@ -1292,7 +1292,7 @@ def main():
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     recent = sub.add_parser("recent-mail")
-    recent.add_argument("--hours", type=int, default=24)
+    recent.add_argument("--hours", type=int, default=72)
     recent.add_argument("--max-items", type=int, default=250)
     recent.add_argument("--mode", choices=("web", "auto"), default="web")
 
